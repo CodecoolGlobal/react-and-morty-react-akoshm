@@ -1,16 +1,17 @@
 import useFetch from "../api/useFetch";
-import Card from "./Card";
+import Location from "./Location";
 
-export default function CharacterList({ url }) {
+
+export default function LocationList({ url }) {
     const { isPending, error, data } = useFetch(url)
     console.log(data);
     return (
 
-        <div className="character-list">
+        <div className="location-list">
             {isPending && <div>loading...</div>}
             {error && <div>{error}</div>}
             {data && data.results.map((character) => 
-            <Card key={character.id} character={character} />
+            <Location key={character.id} character={character} />
             )}
 
 
