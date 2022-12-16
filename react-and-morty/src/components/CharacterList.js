@@ -1,48 +1,39 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import useFetch from "../api/useFetch";
 import Card from "./Card";
 
 export default function CharacterList({ url }) {
+  //1 is the default parameter, because /page=1 and / does the same thing.
+  const [currentPage, setCurrentPage] = useState(1);
+  const { isPending, error, data, fetchNextPage, hasNextPage } = useFetch(url);
 
-    const [loadedPageNumber, setLoadedPageNumber] = useState(1); //1 is the default parameter, because /page=1 and / does the same thing. 
-    const [characters, setCharacters] = useState(null)
-    const { isPending, error, data } = useFetch(url + `?page=${loadedPageNumber}`)
-    const [hasNextPage, setHasNextPage] = useState(true)
-
-        //This stops the fetching, based on if we have other data. Becomes useful in the observer below.
-        useEffect(()=>{
-        if(!isPending && loadedPageNumber !== 1){
-            setCharacters([...characters, ...data.results])
-            setHasNextPage(data.info.next ? true : false);
+  //An observer for infinite scrolling. It uses the same mechanics as in LocationList
+  const intObserver = useRef();
+  const lastPostRef = useCallback(
+    (post) => {
+      if (isPending) return;
+      if (intObserver.current) intObserver.current.disconnect();
+      intObserver.current = new IntersectionObserver((posts) => {
+        if (posts[0].isIntersecting && hasNextPage) {
+          setCurrentPage((pageNumber) => pageNumber + 1);
+          fetchNextPage(currentPage + 1);
         }
-        else if(!isPending){
-            setCharacters([...data.results])
-        }
-    }, [data])
+      });
+      if (post) intObserver.current.observe(post);
+    },
+    [currentPage, fetchNextPage, isPending, hasNextPage]
+  );
 
-    //An observer for infinite scrolling. It uses the same mechanics as in LocationList
-    const intObserver = useRef();
-    const lastPostRef = useCallback(post =>{
-      if(isPending) return
-      if(intObserver.current) intObserver.current.disconnect();
-      intObserver.current = new IntersectionObserver(posts =>{
-        if(posts[0].isIntersecting && hasNextPage){
-          setLoadedPageNumber(pageNumber => pageNumber + 1)
-        }
-      })
-      if(post) intObserver.current.observe(post);
-    }, [isPending,hasNextPage])
-
-    return (
-        <>
-            <div className="character-list" >
-                {isPending && <div>loading...</div>}
-                {error && <div>{error}</div>}
-                {characters && characters.map((character) =>
-                    <Card key={character.id} character={character} ref={lastPostRef} />
-                )}
-
-            </div>
-        </>
-    );
+  return (
+    <>
+      <div className="character-list">
+        {isPending && <div>loading...</div>}
+        {error && <div>{error}</div>}
+        {data &&
+          data.map((character) => (
+            <Card key={character.id} character={character} ref={lastPostRef} />
+          ))}
+      </div>
+    </>
+  );
 }
